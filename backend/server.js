@@ -21,8 +21,13 @@ app.use('/api/juego', juegoRoutes);
 
 //inicia el servidor escuchando en el puerto 5000
 app.listen(port, () => {
+    if(!process.env.PORT){
+        console.warn("No se encontro PORT en el archivo .enn, usando el puerto 5000 por defecto");
+    }
     console.log(`Servidor corriendo en el puerto ${port}`);
-});
+}).on('error',(err)=>{
+    console.error("Error al iniciar el servidor: ",err);
+})
 
 
 

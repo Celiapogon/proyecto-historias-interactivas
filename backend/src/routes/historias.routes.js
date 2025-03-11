@@ -3,9 +3,9 @@ import { verifyToken } from '../middleware/auth.middleware.js';
 import {
     getHistoriasPublicas,
     getHistoriaById,
-    createHistoria,
-    updateHistoria,
-    deleteHistoria
+    borrarHistoria,
+    actuarlizarHistoria,
+    crearHistoria
 } from '../controllers/historias.controller.js';
 
 const router = express.Router();
@@ -16,10 +16,10 @@ router.get('/', getHistoriasPublicas);
 router.get('/:id', getHistoriaById);
 
 // 🔒 Ruta protegida para que un autor cree una historia
-router.post('/', verifyToken, createHistoria);
+router.post('/', verifyToken, crearHistoria);
 // 🔒 Ruta protegida para que un autor modifique su historia
-router.put('/:id', verifyToken, updateHistoria);
+router.put('/:id', verifyToken, actuarlizarHistoria);
 // 🔒 Ruta protegida para que un autor elimine su historia
-router.delete('/:id', verifyToken, deleteHistoria);
+router.delete('/:id', verifyToken, borrarHistoria);
 
 export default router;

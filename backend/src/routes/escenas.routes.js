@@ -14,7 +14,7 @@ router.get('/:historia_id', getEscenasPublicas);
 router.get('/escena/:id', getEscenaById);
 
 // 🔒 Ruta protegida para que un autor cree una escena
-router.post('/', verifyToken, crearEscena);
+router.post('/nuevaEscena', verifyToken, crearEscena);
 // 🔒 Ruta protegida para que un autor modifique su escena
 router.put('/:id', verifyToken, actualizarEscena);
 // 🔒 Ruta protegida para que un autor elimine su escena

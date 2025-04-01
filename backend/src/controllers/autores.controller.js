@@ -6,57 +6,199 @@ import jwt from 'jsonwebtoken'; //de momento se usa para generar y verificar tok
 //RUTAS REALES PARA LOS AUTORES
 // Registro de un nuevo autor (usuario)
 export const registro = (req, res) => {
-    const { nombre, email, password } = req.body;
-    if (!nombre || !email || !password) {
-        return res.status(400).json({succes:false, error: 'Nombre, email y contraseña son requeridos' });
+    try{ 
+        const { nombre, email, password } = req.body;
+        // console.log('Received registration data:', { nombre, email }); // Debug log        
+        if (!nombre || !email || !password) {
+            console.log('Missing fields:', { nombre, email, password: !!password });
+            return res.status(400).json({
+                success: false, 
+                message: 'Nombre, email y contraseña son requeridos' 
+            });
+        }
+
+        // Check if username or email already exists
+        db.query('SELECT id, email, nombre FROM autores WHERE email = ? OR nombre = ?', [email, nombre], (err, results) => {
+            if (err) {
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Error al verificar usuario' 
+                });
+            }
+
+            if (results.length > 0) {
+                const existingUser = results[0];
+                if (existingUser.email === email) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'El email ya está registrado' 
+                    });
+                }
+                if (existingUser.nombre === nombre) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'El nombre de usuario ya está en uso' 
+                    });
+                }
+            }
+
+            // If neither email nor username exists, proceed with registration
+            db.query('INSERT INTO autores (nombre, email, password) VALUES (?, ?, ?)', 
+                [nombre, email, password], 
+                (err, result) => {
+                    if (err) {
+                        console.error('Database error during insertion:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            message: 'Error al registrar usuario',
+                            error: err.message 
+                        });
+                    }
+                    
+                    console.log('Registration successful:', result);
+                    res.status(201).json({ 
+                        success: true,
+                        message: 'Usuario registrado exitosamente',
+                        data: {
+                            id: result.insertId, 
+                            nombre, 
+                            email
+                        } 
+                    });
+                }
+            );
+        });
+
+    } catch (error) {
+        console.error('Error en registro:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
     }
-    if (err.code === 'ER_DUP_ENTRY') {
-        return res.status(400).json({succes:false, error: 'Este email ya está registrado' });
-    }
-    // Insertar el nuevo autor (usuario) en la base de datos
-    db.query('INSERT INTO autores (nombre, email, password) VALUES (?, ?, ?)', [nombre, email, password], (err, result) => {
-        if (err) return res.status(500).json({ succes:false,error: err.message });
-        res.status(201).json({ succes:true,data: {id: result.insertId, nombre, email} });
-    });
 };
 // Iniciar sesión 
 export const login = (req, res) => {
     const { email, password } = req.body;
+    console.log('Login attempt for:', email); // Debug log
+    
     if (!email || !password) {
-        return res.status(400).json({ success:false, error: 'Email y contraseña son requeridos' });
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Email y contraseña son requeridos' 
+        });
     }
+    
+
     // Buscar el autor en la base de datos
     db.query('SELECT * FROM autores WHERE email = ?', [email], (err, results) => {
-        if (err) return res.status(500).json({ success:false, error: err.message });
-        if (results.length === 0) return res.status(404).json({ success:false, error: 'Autor no encontrado' });
+        if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Error en el servidor' 
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Email o contraseña incorrectos' 
+            });
+        }
+
         const autor = results[0];
         // Comparar las contraseñas (sin cifrado, solo comparación directa)
         if (password !== autor.password) {
-            return res.status(401).json({success:false, error: 'Contraseña incorrecta' });
+            return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
         }
-        // Generar el token JWT.Cuando el usuario se autentica correctamente, se genera un token JWT usando jwt.sign, que contiene el ID y el email del autor. Este token se enviará al cliente para futuras solicitudes.
-        const token = jwt.sign({ id: autor.id, email: autor.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ success:true, data:{message: 'Autenticación exitosa', token }});
+
+        const token = jwt.sign(
+            { id: autor.id, email: autor.email }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '1h' }
+        );
+
+        console.log('Login successful for:', email); // Debug log
+
+        res.json({ 
+            success: true, 
+            data: {
+                token,
+                user: {
+                    id: autor.id,
+                    nombre: autor.nombre,
+                    email: autor.email
+                }
+            }
+        });
     });
 };
 
 // Obtener el perfil de un autor (usuario)
 export const getPerfil = (req, res) => {
-    const { id } = req.user; // Obtengo el ID del usuario desde el token (middleware)
-    // Buscar los datos del autor en la base de datos
-    db.query('SELECT nombre, email FROM autores WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (results.length === 0) return res.status(404).json({ error: 'Autor no encontrado' });
-        res.json(results[0]);
-    });
+    const { id } = req.user; // Getting ID from JWT token
+    console.log('User ID from token:', id); // Debug log
+
+    // Explicitly select id in the query
+    db.query(
+        'SELECT id, nombre, email FROM autores WHERE id = ?', 
+        [id], 
+        (err, results) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Error al obtener el perfil' 
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Autor no encontrado' 
+                });
+            }
+
+            console.log('Profile data being sent:', results[0]); // Debug log
+            res.json(results[0]);
+        }
+    );
 };
 
 export const updateAutor = (req, res) => {
     const { id } = req.user; // Obtener el ID del autor desde el token
-    const { nombre, email, password } = req.body;
-    if (!nombre && !email && !password) {
-        return res.status(400).json({ error: 'Al menos uno de los campos (nombre, email o contraseña) debe ser proporcionado.' });
+    const { nombre, email, password } = req.body;   
+    if (!nombre || !email || !password) {
+        console.log('Missing fields:', { nombre, email, password: !!password });
+        return res.status(400).json({
+            success: false, 
+            message: 'Nombre, email y contraseña son requeridos' 
+        });
     }
+
+
+    // Check if username or email already exists
+    db.query('SELECT id, email, nombre FROM autores WHERE email = ? OR nombre = ?', [email, nombre], (err, results) => {
+        if (err) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Error al verificar usuario' 
+            });
+        }
+
+        if (results.length > 0) {
+            const existingUser = results[0];           
+            if (existingUser.nombre === nombre) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'El nombre de usuario ya está en uso' 
+                });
+            }
+        }
+    });
+        
     // Construir la consulta de actualización dinámica
     let query = 'UPDATE autores SET ';
     const params = [];
@@ -80,7 +222,7 @@ export const updateAutor = (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         // Verificar si algún registro fue actualizado
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Autor no encontrado o no se realizaron cambios' });
+            return res.status(404).json({ success: false, message: 'Autor no encontrado o no se realizaron cambios' });
         }
 
         res.json({ message: 'Datos del autor actualizados correctamente' });

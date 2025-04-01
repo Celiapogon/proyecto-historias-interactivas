@@ -4,7 +4,7 @@ import { verifyToken } from '../middleware/auth.middleware.js'; // Importar el m
 const router = express.Router();
 
 // Ruta para registrar un autor (usuario)
-router.post('/registro', registro); // Registro de usuario
+router.post('/register', registro); // Registro de usuario
 // Ruta para hacer login y obtener un token JWT
 router.post('/login', login); // Login y obtener token JWT
 // Ruta protegida para obtener el perfil de un autor (usuario)

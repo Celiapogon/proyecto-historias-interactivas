@@ -19,8 +19,8 @@ export const crearOpcion = (req, res) => {
     // Verificar que la escena de origen pertenece al autor
     db.query(
         `SELECT historias.autor_id FROM escenas 
-         JOIN historias ON escenas.historia_id = historias.id 
-         WHERE escenas.id = ?`,
+        JOIN historias ON escenas.historia_id = historias.id 
+        WHERE escenas.id = ?`,
         [escena_origen_id],
         (err, results) => {
             if (err) return res.status(500).json({ error: err.message });

@@ -9,8 +9,14 @@ import escenasRoutes from './src/routes/escenas.routes.js';
 import opcionesRoutes from './src/routes/opciones.routes.js';
 import juegoRoutes from './src/routes/juego.routes.js';
 
-const app = express();//crear la aplicacion de express
-app.use(cors());//habilitar cors
+const app = express();
+
+// Configure CORS
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
+
 app.use(express.json());//habilitar el parsing de json
 //rutas
 app.use('/api/autores', autoresRoutes);
@@ -19,15 +25,20 @@ app.use('/api/escenas', escenasRoutes);
 app.use('/api/opciones', opcionesRoutes);
 app.use('/api/juego', juegoRoutes);
 
-//inicia el servidor escuchando en el puerto 5000
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Something went wrong!' });
+});
+
 app.listen(port, () => {
     if(!process.env.PORT){
-        console.warn("No se encontro PORT en el archivo .enn, usando el puerto 5000 por defecto");
+        console.warn("No se encontro PORT en el archivo .env, usando el puerto 5000 por defecto");
     }
     console.log(`Servidor corriendo en el puerto ${port}`);
 }).on('error',(err)=>{
     console.error("Error al iniciar el servidor: ",err);
-})
+});
 
 
 
